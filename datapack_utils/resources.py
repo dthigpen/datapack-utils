@@ -47,7 +47,7 @@ def get_items(strip_prefix=False) -> List[str]:
     all_items = []
     with open(ITEMS_PATH, 'r') as items_file:
         for item in items_file.readlines():
-            all_items.append(item.strip()[len('minecraft:'):] if strip_prefix else item)
+            all_items.append(item.strip()[len('minecraft:'):] if strip_prefix else item.strip())
     return all_items
 
 def path_exists(path: Path):

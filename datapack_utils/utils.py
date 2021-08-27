@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from string import Template
 from typing import NamedTuple
+import re
 
 #{"jformat":7,"jobject":[{"bold":false,"italic":false,"underlined":false,"strikethrough":false,"obfuscated":false,"font":null,"color":"dark_red","insertion":"","click_event_type":0,"click_event_value":"","hover_event_type":0,"hover_event_value":"","hover_event_object":{},"hover_event_children":[],"text":"Error: "},{"bold":true,"italic":false,"underlined":false,"strikethrough":false,"obfuscated":false,"font":null,"color":"none","insertion":"","click_event_type":0,"click_event_value":"","hover_event_type":0,"hover_event_value":"","hover_event_object":{},"hover_event_children":[],"text":"$pretty_name"},{"bold":false,"italic":false,"underlined":false,"strikethrough":false,"obfuscated":false,"font":null,"color":"none","insertion":"","click_event_type":0,"click_event_value":"","hover_event_type":0,"hover_event_value":"","hover_event_object":{},"hover_event_children":[],"text":" requires "},{"bold":true,"italic":false,"underlined":false,"strikethrough":false,"obfuscated":false,"font":null,"color":"none","insertion":"","click_event_type":0,"click_event_value":"","hover_event_type":0,"hover_event_value":"","hover_event_object":{},"hover_event_children":[],"text":"$dep_pretty_name "},{"bold":false,"italic":false,"underlined":false,"strikethrough":false,"obfuscated":false,"font":null,"color":"none","insertion":"","click_event_type":0,"click_event_value":"","hover_event_type":0,"hover_event_value":"","hover_event_object":{},"hover_event_children":[],"text":"$dep_major.$dep_minor"}],"command":"/tellraw @p %s","jtemplate":"tellraw"}
 DEPENDENCY_NOT_FOUND_MSG = 'tellraw @p ["",{"text":"Error: ","color":"dark_red"},{"text":"$pretty_name","bold":true}," requires ",{"text":"$dep_pretty_name ","bold":true},"$dep_major.$dep_minor"]'
@@ -22,10 +23,15 @@ execute if score $$$dep_load_name load.status matches 1 unless score $$dt.tmp.de
 
 
 def coordinate_range(min_coord: tuple[int, int, int], max_coord: tuple[int, int, int]):
+    values = set()
     for x in range(min_coord[0], max_coord[0] + 1):
         for y in range(min_coord[1], max_coord[1] + 1):
             for z in range(min_coord[2], max_coord[2] + 1):
-                yield (x, y, z)
+                value = (x, y, z)
+                if value not in values:
+                    print(value)
+                    values.add(value)
+                    yield value
 
 
 
@@ -38,10 +44,10 @@ class Pack:
         minor: int
         patch: int = 0
     
-    name: str
     load_name: str
-    tick_function: str = None
     version: Version = None
+    name: str = None
+    tick_function: str = None
     dependencies: list = field(default_factory=list)
 
     
@@ -73,3 +79,9 @@ scoreboard players set ${pack_info.load_name}.version.patch load.status {pack_in
         output += f'schedule clear {pack_info.tick_function}\n'
         output += f'execute if score ${pack_info.load_name} load.status matches 1 run schedule function {pack_info.tick_function} 1t replace'
     return output
+
+
+def permute_range(start, end):
+    for i in range(start, end + 1):
+        for j in range(start, i + 1):
+            yield (i, j)

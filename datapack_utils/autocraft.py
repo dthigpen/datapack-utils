@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from string import Template
-
+import copy
 from . import resources
 
 AUTOCRAFT_NAMESPACE = 'dt.autocraft:'
@@ -9,7 +9,7 @@ AUTOCRAFT_NAMESPACE = 'dt.autocraft:'
 ON_ADV_RECEIVE_TEMPLATE = Template('''
 # $crafter
 execute unless score #has_recipe dt.tmp matches 2 store success score #has_recipe dt.tmp run recipe take @s dt.autocraft:$crafter
-execute unless score #has_recipe dt.tmp matches 2 if score #has_recipe dt.tmp matches 1 run summon item ~ ~ ~ {Item:{id:"minecraft:dropper",Count:1b, tag:{display:{Name:'{"text":"$item"}'},CustomModelData:777777,dt_autocrafter:1b,BlockEntityTag:{Lock:"dt_autocrafter"}}}}
+execute unless score #has_recipe dt.tmp matches 2 if score #has_recipe dt.tmp matches 1 run data modify storage call_stack: this.name set value '{"text":"$item"}'
 execute unless score #has_recipe dt.tmp matches 2 if score #has_recipe dt.tmp matches 1 run scoreboard players set #has_recipe dt.tmp 2
 ''')
 
@@ -49,11 +49,13 @@ execute if score @s dt.tmp matches 2.. run data modify storage call_stack: this.
 function call_stack:pop
 '''
 
+def __create_recipe_file(recipe_file_path: Path, recipe_dict: dict):
+    with open(recipe_file_path, 'w') as crafter_file:
+            json.dump(recipe_dict, crafter_file, indent=4)
+
 def create_crafter_recipe_files(cutom_recipes_parent_dir: Path):
-    #cog.msg('Writing custom crafter recipe files')
-    for result in resources.get_unique_result_recipes():
-        crafter_name = result[result.find(':') + 1:] + '_crafter'
-        crafter_dict = {
+    recipe_suffix = '_crafter.json'
+    crafter_dict_template = {
             "type": "minecraft:crafting_shapeless",
             "ingredients": [
                 {
@@ -61,19 +63,22 @@ def create_crafter_recipe_files(cutom_recipes_parent_dir: Path):
                 },
                 {
                     "item": "minecraft:dropper"
-                },
-                {
-                    "item": result
                 }
             ],
             "result": {
                 "item": "minecraft:knowledge_book"
             }
         }
-        crafter_file_name = crafter_name + '.json'
-        full_crafter_path = cutom_recipes_parent_dir / crafter_file_name
-        with open(full_crafter_path, 'w') as crafter_file:
-            json.dump(crafter_dict, crafter_file, indent=4)
+    
+    # Create recipe for base autocrafter
+    __create_recipe_file(cutom_recipes_parent_dir / ('autocrafter.json'), copy.deepcopy(crafter_dict_template))
+    # Create recipes for item specific autocrafters
+    for result in resources.get_unique_result_recipes():
+        crafter_dict = copy.deepcopy(crafter_dict_template)
+        crafter_dict['ingredients'].append({'item':result})
+        full_crafter_path = cutom_recipes_parent_dir / (result[result.find(':') + 1:] + recipe_suffix)
+        __create_recipe_file(full_crafter_path, crafter_dict)
+        
 
 def create_autocrafter_advancement_file(adv_file_path: Path):
     #cog.msg('Writing autocrafter advancement file')
@@ -118,6 +123,7 @@ def create_set_recipe_for_autocrafter_str():
 
 def create_on_adv_granted_function_str():
     on_adv_funct_content = ''
+    on_adv_funct_content += ON_ADV_RECEIVE_TEMPLATE.substitute({'crafter': 'autocrafter', 'item': 'Autocrafter'})
     for result in resources.get_unique_result_recipes():
         crafter_name = result[result.find(':') + 1:] + '_crafter'
         on_adv_funct_content += ON_ADV_RECEIVE_TEMPLATE.substitute({'crafter': crafter_name, 'item': result})

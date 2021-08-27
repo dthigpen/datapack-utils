@@ -1,4 +1,6 @@
 import json
+from collections import Counter
+from collections import defaultdict
 from pathlib import Path
 from string import Template
 from typing import List
@@ -17,19 +19,31 @@ ingredient_template = {
 
 all_items = []
 
-def __shapeless_recipe_to_nbt(result: str, count: int, ingredients: dict) -> dict:
+def __shapeless_recipe_to_nbt(result: str, count: int, ingredients: list) -> dict:
     nbt = recipe_template.copy()
     nbt['result'] = {'id': '', 'count': 1}
     nbt['result']['id'] = result
     nbt['result']['count'] = count
     nbt['type'] = 'shapeless'
     nbt['ingredients'] = []
-    for ingredient in ingredients:
-        if isinstance(ingredient, list):
-            nbt['ingredients'].append(__create_ingredient(ingredient[0], count))
+    
+    for i in range(len(ingredients)):
+
+        if isinstance(ingredients[i], list):
             print(f'{result}: Unable to handle list ingredients. Writing with first ingredient of list')
-        else:
-            nbt['ingredients'].append(__create_ingredient(ingredient, count))
+            ingredients[i] = ingredients[i][0]
+
+    # if result == 'minecraft:book':
+    counts = Counter(i['item'] if 'item' in i else i['tag'] for i in ingredients)
+    
+    for ingredient in ingredients:
+        item_name = ingredient['item'] if 'item' in ingredient else ingredient['tag']
+        if item_name in counts:
+            nbt['ingredients'].append(__create_ingredient(ingredient, counts.pop(item_name)))
+            counts.pop
+    
+    # if result == 'minecraft:book':
+    #     print(nbt['ingredients'])
     return nbt
 
 def __permute_slots(slots: list, cols_cofactor, rows_cofactor) -> list:
@@ -97,10 +111,41 @@ def __shaped_recipe_to_nbt(result: str, count: int, pattern_rows: list, keys: di
     nbt['ingredients'] = ingredients
     return nbt
 
+def __create_storage_tree(data_list: list, operations: list) -> dict:
+    current_tree = defaultdict(lambda: [])
+    if not operations:
+            return data_list
+    
+    operation = operations[0]
+    for data in data_list:
+        key = operation(data)
+        current_tree[key].append(data)
+
+    for key in current_tree:
+        current_tree[key] = __create_storage_tree(current_tree[key], operations[1:])
+            
+    return dict(current_tree)
+
+def __get_unique_ingredient_count(recipe_json: dict) -> int:
+    return len(recipe_json['ingredients'])
+
+def __get_total_ingredient_count(recipe_json: dict) -> int:
+    return sum(i['count'] for i in recipe_json['ingredients'])
+
 def get_recipes_storage_dict():
     all_recipes_dict = {
-        'recipes': []
+        'recipes': [],
+        'num_ingredients': {},
+        'recipe_tree': {}
     }
+    operations = []
+    operations.append(__get_total_ingredient_count)
+    operations.append(__get_unique_ingredient_count)
+
+    # for i in range(1,10):
+    #     all_recipes_dict['recipe_tree'][i] = {}
+    #     for j in range(1,10):
+    #         all_recipes_dict['recipe_tree'][i][j] = []
 
     for _,recipe_dict in resources.get_all_recipes():
         # print('Reading ' + recipe_dict)
@@ -122,7 +167,27 @@ def get_recipes_storage_dict():
             # print('Unsupported recipe type: ' + recipe_dict['type'] +  ' for ' + file)
             continue
         if nbt is not None:
+            nbt['total_count'] = __get_total_ingredient_count(nbt)
+            nbt['unique_count'] = __get_unique_ingredient_count(nbt)
+            # all_recipes_dict['recipe_tree'][nbt['total_count']][nbt['unique_count']].append(nbt)
             all_items.append(nbt['result']['id'])
             all_recipes_dict['recipes'].append(nbt)
-    return all_recipes_dict
+    for recipe in all_recipes_dict['recipes']:
+        num = str(sum(i['count'] for i in recipe['ingredients']))
+        if num not in all_recipes_dict['num_ingredients']:
+            all_recipes_dict['num_ingredients'][num] = []
+        
+        all_recipes_dict['num_ingredients'][num].append(recipe)
 
+    for i in range(1,10):
+        if str(i) not in all_recipes_dict['num_ingredients']:
+            all_recipes_dict['num_ingredients'][str(i)] = []
+    
+    all_recipes_dict['recipe_tree'] = __create_storage_tree(all_recipes_dict['recipes'], operations)
+
+
+    # print('tree')
+    # print(json.dumps(all_recipes_dict['recipe_tree'],indent=4))
+    # all_recipes_dict['num_ingredients']['2'] = [all_recipes_dict['num_ingredients']['2'][0]]
+    # all_recipes_dict['num_ingredients']['3'] = [r for r in all_recipes_dict['num_ingredients']['3'] if r['result']['id'] == 'minecraft:stone_sword']
+    return all_recipes_dict
