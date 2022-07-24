@@ -57,7 +57,7 @@ def setup_versioning(pack_info: Pack):
     output = ''
 
     # If a version was specified output it
-    
+    print(pack_info.tick_function)
     if pack_info.version:
         output += f'''
 scoreboard players set ${pack_info.load_name}.version.major load.status {pack_info.version.major}
@@ -85,3 +85,9 @@ def permute_range(start, end):
     for i in range(start, end + 1):
         for j in range(start, i + 1):
             yield (i, j)
+
+def dict_to_nbt(json_dict: dict) -> str:
+    pass
+
+# def for p in datapack_path.glob('**/*.mcfunction'):
+#     if 'test' in p.parts:

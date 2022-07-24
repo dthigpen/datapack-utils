@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 
 JARS_PATH=~/.minecraft/versions
-VERSION='1.17'
-DEST_PATH='.'
+VERSION='1.19'
+DEST_PATH='minecraft_jar'
 
 JAR_FILE_FILTER='data/minecraft/**'
 
@@ -13,7 +13,7 @@ then
     echo "Removing existing $DEST_PATH/$JAR_FILE_FILTER"
     rm -rf $DEST_PATH/$JAR_FILE_FILTER
     echo "Extracting $full_path to $DEST_PATH"
-    unzip -q $full_path -d $DEST_PATH $JAR_FILE_FILTER
+    unzip -q $full_path -d $DEST_PATH
 
 else
     echo "$full_path does not exist"

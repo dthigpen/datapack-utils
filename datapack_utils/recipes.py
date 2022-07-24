@@ -5,116 +5,16 @@ from pathlib import Path
 from string import Template
 from typing import List
 from typing import Tuple
-from . import resources
+import copy
+import itertools
 
-recipe_template = {
-    'ingredients': [],
-    'result': {'id': '', 'count': 1},
-    'type': ''
-}
-ingredient_template = {
-    'count': 1,
-    'slots': []
-}
+from . import minecraft_data
 
-all_items = []
-
-def __shapeless_recipe_to_nbt(result: str, count: int, ingredients: list) -> dict:
-    nbt = recipe_template.copy()
-    nbt['result'] = {'id': '', 'count': 1}
-    nbt['result']['id'] = result
-    nbt['result']['count'] = count
-    nbt['type'] = 'shapeless'
-    nbt['ingredients'] = []
-    
-    for i in range(len(ingredients)):
-
-        if isinstance(ingredients[i], list):
-            print(f'{result}: Unable to handle list ingredients. Writing with first ingredient of list')
-            ingredients[i] = ingredients[i][0]
-
-    # if result == 'minecraft:book':
-    counts = Counter(i['item'] if 'item' in i else i['tag'] for i in ingredients)
-    
-    for ingredient in ingredients:
-        item_name = ingredient['item'] if 'item' in ingredient else ingredient['tag']
-        if item_name in counts:
-            nbt['ingredients'].append(__create_ingredient(ingredient, counts.pop(item_name)))
-            counts.pop
-    
-    # if result == 'minecraft:book':
-    #     print(nbt['ingredients'])
-    return nbt
-
-def __permute_slots(slots: list, cols_cofactor, rows_cofactor) -> list:
-    perms = []
-    for i in range(rows_cofactor):
-        for j in range(cols_cofactor):
-            perm = slots.copy()
-            for k in range(len(perm)):
-                perm[k] += j + i * 3
-            perms.append(perm)
-    return perms
-
-def __create_ingredient(key: dict, count: int, slot_permutations: list = None):
-    nbt = ingredient_template.copy()
-    nbt['count'] = count
-    if 'item' in key:
-        nbt['type'] = 'id'
-        nbt['id'] = key['item']
-    elif 'tag' in key:
-        nbt['type'] = 'tag'
-        nbt['tag'] = key['tag']
-    else:
-        print('ERROR, no item or tag present')
-    if slot_permutations:
-        nbt['slots'] = slot_permutations
-    else:
-        nbt.pop('slots')
-    return nbt
-
-def __shaped_recipe_to_nbt(result: str, count: int, pattern_rows: list, keys: dict) -> dict:
-    nbt = recipe_template.copy()
-    nbt['result'] = {'id': '', 'count': 1}
-    nbt['result']['id'] = result
-    nbt['result']['count'] = count
-    nbt['type'] = 'shaped'
-
-    slot = 0
-    initial_item_slots = {}
-    item_counts = {}
-    for row in pattern_rows:
-        for symbol in row:
-            if symbol in keys:
-                if symbol not in initial_item_slots:
-                    initial_item_slots[symbol] = []
-                initial_item_slots[symbol].append(slot)
-                if symbol not in item_counts:
-                    item_counts[symbol] = 0
-                item_counts[symbol] += 1
-        
-            slot += 1
-        slot += 3 - len(row)
-    cols_cofactor = 3 - len(pattern_rows[0]) + 1
-    rows_cofactor = 3 - len(pattern_rows) + 1
-
-    ingredients = []
-    for symbol in initial_item_slots:
-        # if result == 'minecraft:quartz_stairs':
-        #     print(initial_item_slots[symbol])
-        slots = __permute_slots(initial_item_slots[symbol], cols_cofactor, rows_cofactor)
-        count = item_counts[symbol]
-        if isinstance(keys[symbol], list):
-            keys[symbol] = keys[symbol][0]
-            # print(f'{result}: Unable to handle ingredient as list, using first: {keys[symbol]}')
-        ingredients.append(__create_ingredient(keys[symbol], count, slots))
-    nbt['ingredients'] = ingredients
-    return nbt
 
 def __create_storage_tree(data_list: list, operations: list) -> dict:
     current_tree = defaultdict(lambda: [])
     if not operations:
-            return data_list
+        return data_list
     
     operation = operations[0]
     for data in data_list:
@@ -126,68 +26,202 @@ def __create_storage_tree(data_list: list, operations: list) -> dict:
             
     return dict(current_tree)
 
-def __get_unique_ingredient_count(recipe_json: dict) -> int:
-    return len(recipe_json['ingredients'])
+# def __get_unique_ingredient_count(recipe_json: dict) -> int:
+#     return len(recipe_json['ingredients'])
 
-def __get_total_ingredient_count(recipe_json: dict) -> int:
-    return sum(i['count'] for i in recipe_json['ingredients'])
+def get_recipes():
+    recipes = []
+    items_dict = minecraft_data.get_items_dict()
+    for _,recipe_variants in minecraft_data.get_recipes():
+        # if recipe_variants[0]['result']['id'] != 1079:
+        #     continue
+        # print(f"Creating {recipe_variants[0]['result']['id']}")
+        merged_shaped_recipe = {"items":[],"slots":[],"result":[],"shapeless": 0}
+        merged_shapeless_recipe = {"items":[[]],"slots":[],"result":[],"shapeless": 1}
+        for variant in recipe_variants:
+            print(variant)
+            name = items_dict[variant['result']['id']]['name']
+            # print(variant)
+            row_index = 0
+            temp_slots = []
 
-def get_recipes_storage_dict():
-    all_recipes_dict = {
-        'recipes': [],
-        'num_ingredients': {},
-        'recipe_tree': {}
-    }
-    operations = []
-    operations.append(__get_total_ingredient_count)
-    operations.append(__get_unique_ingredient_count)
+            if 'inShape' in variant:
+                merged_shaped_recipe['shapeless'] = 0
+                merged_shaped_recipe['name'] = name
+                if not merged_shaped_recipe['result']:
+                    merged_shaped_recipe['result'] = [variant['result']['id'],variant['result']['count']]
+                merged_rows = merged_shaped_recipe['items']
 
-    # for i in range(1,10):
-    #     all_recipes_dict['recipe_tree'][i] = {}
-    #     for j in range(1,10):
-    #         all_recipes_dict['recipe_tree'][i][j] = []
+                for row in variant['inShape']:
+                    
+                    if row_index == len(merged_shaped_recipe['slots']):
+                        row_slots = [1 if i is not None else 0 for i in row]
+                        merged_shaped_recipe['slots'].append(row_slots)
 
-    for _,recipe_dict in resources.get_all_recipes():
-        # print('Reading ' + recipe_dict)
-        if 'result' not in recipe_dict:
-            # print('Unsupported recipe: ' + file)
-            continue
+                    if row_index == len(merged_rows):
+                        merged_rows.append([])
+                    col_index = 0
+                    merged_cols = merged_rows[row_index]
+                    for item_id_in in row:
+                        if col_index == len(merged_cols):
+                            merged_cols.append([])
+                        merged_col_ids = merged_cols[col_index]
+                        if item_id_in is None:
+                            item_id_in = 0
+                        if item_id_in not in merged_col_ids:
+                            merged_col_ids.append(item_id_in)
+                        col_index += 1
+                    row_index += 1
+            elif 'ingredients' in variant:
+                merged_shapeless_recipe['shapeless'] = 1
+                merged_shapeless_recipe['name'] = name
 
-        nbt = {}
-        if recipe_dict['type'] == "minecraft:crafting_shaped":
-            # handle shaped crafting
-            count = recipe_dict['result']['count'] if 'count' in recipe_dict['result'] else 1
-            
-            nbt = __shaped_recipe_to_nbt(recipe_dict['result']['item'], count, recipe_dict['pattern'], recipe_dict['key'])
-            
-        elif recipe_dict['type'] == "minecraft:crafting_shapeless":
-            count = recipe_dict['result']['count'] if 'count' in recipe_dict['result'] else 1
-            nbt = __shapeless_recipe_to_nbt(recipe_dict['result']['item'], count, recipe_dict['ingredients'])
+                if not merged_shapeless_recipe['result']:
+                    merged_shapeless_recipe['result'] = [variant['result']['id'],variant['result']['count']]
+                merged_rows = merged_shapeless_recipe['items'][0]
+                
+                index = 0
+                for item_id_in in variant['ingredients']:
+                    if index == len(merged_rows):
+                        merged_rows.append([])
+                    
+                    row_ids = merged_rows[index]
+                    if item_id_in is None:
+                        item_id_in = 0
+                    if item_id_in not in row_ids:
+                        row_ids.append(item_id_in)
+                    index += 1
+        if merged_shaped_recipe['result']:
+            recipes.append(merged_shaped_recipe)
+        if merged_shapeless_recipe['result']:
+            recipes.append(merged_shapeless_recipe)
+    return recipes
+
+def get_recipes_dict_by_count():
+    counts = {}
+    for r in get_recipes():
+        count = __get_total_ingredient_count(r)
+        if count not in counts:
+            counts[count] = []
+        counts[count].append(r)
+    return counts
+
+def __get_total_ingredient_count(recipe):
+    count = 0
+    for row in recipe['items']:
+        for col in row:
+            if col != [0]:
+                count += 1
+    return count
+
+
+def __remove_zeros(id_sets: list) -> list:
+    new_id_sets = []
+    for ids in id_sets:
+        new_ids = [item_id for item_id in ids if item_id != 0]
+        if new_ids:
+            new_id_sets.append(new_ids)
+    # if len(id_sets) != len(new_id_sets):
+    #     print(f'Old: {id_sets}')
+    #     print(f'New: {new_id_sets}')
+    return new_id_sets
+
+def get_recipe_items(recipe: dict, mirror_horizontal=False, include_row_ends=True) -> list:
+    items = []
+    placeholder = [-2]
+    for row in recipe['items']:
+        if mirror_horizontal:
+            row = reversed(row)
+        if recipe['shapeless'] == 1:
+            items.append(row)
         else:
-            # print('Unsupported recipe type: ' + recipe_dict['type'] +  ' for ' + file)
-            continue
-        if nbt is not None:
-            nbt['total_count'] = __get_total_ingredient_count(nbt)
-            nbt['unique_count'] = __get_unique_ingredient_count(nbt)
-            # all_recipes_dict['recipe_tree'][nbt['total_count']][nbt['unique_count']].append(nbt)
-            all_items.append(nbt['result']['id'])
-            all_recipes_dict['recipes'].append(nbt)
-    for recipe in all_recipes_dict['recipes']:
-        num = str(sum(i['count'] for i in recipe['ingredients']))
-        if num not in all_recipes_dict['num_ingredients']:
-            all_recipes_dict['num_ingredients'][num] = []
+            for id_set in row:
+                items.append(id_set)
+            if include_row_ends:
+                items.append(placeholder)
         
-        all_recipes_dict['num_ingredients'][num].append(recipe)
+    if include_row_ends and items[-1] == placeholder:
+        items.pop()
+    # return __remove_zeros(items)
+    return items
 
-    for i in range(1,10):
-        if str(i) not in all_recipes_dict['num_ingredients']:
-            all_recipes_dict['num_ingredients'][str(i)] = []
-    
-    all_recipes_dict['recipe_tree'] = __create_storage_tree(all_recipes_dict['recipes'], operations)
+def get_recipe_item_pairs():
+    pairs = []
+    for recipe in get_recipes():
+        t = (recipe, get_recipe_items(recipe))
+        pairs.append(t)
+    return pairs
 
 
-    # print('tree')
-    # print(json.dumps(all_recipes_dict['recipe_tree'],indent=4))
-    # all_recipes_dict['num_ingredients']['2'] = [all_recipes_dict['num_ingredients']['2'][0]]
-    # all_recipes_dict['num_ingredients']['3'] = [r for r in all_recipes_dict['num_ingredients']['3'] if r['result']['id'] == 'minecraft:stone_sword']
-    return all_recipes_dict
+def items_start_with_sequence(ingredients, sequence) -> bool:
+    index = 0
+    seq2 = sequence.copy()
+    for ingredient_options in ingredients:
+        if not sequence:
+            break
+        else:
+            # print(f'{sequence[0]} not in {ingredient_options}')
+            if sequence.pop(0) not in ingredient_options:
+                return -1
+        index += 1
+    if not sequence:
+        return index
+    else:
+        return -1
+
+
+def __equal_dicts(dict1: dict, dict2: dict) -> bool:
+    return json.dumps(dict1, sort_keys=True, indent=2) == json.dumps(dict2, sort_keys=True, indent=2)
+
+
+def __add_to_tree(tree: dict, keys: list, value: dict):
+    key_set = keys[0]
+    for key in key_set:
+        key = int(key)
+        if key not in tree:
+            tree[key] = dict()
+        if len(keys) == 1:
+            if "recipes" not in tree[key]:
+                tree[key]["recipes"] = []
+            value_copy = copy.deepcopy(value)
+            value_copy.pop('items')
+            if not any(d for d in tree[key]["recipes"] if __equal_dicts(value_copy, d)):
+                tree[key]["recipes"].append(value_copy)
+        else:
+            __add_to_tree(tree[key], keys[1:], value)
+        
+
+
+def build_recipe_tree(include_shapeless=True, include_shaped=True):
+    tree = {}
+    recipe_item_pairs = [(r,i) for r,i in get_recipe_item_pairs() if len(i) >= 8 and r['result'][0] != 245]
+    count = 1
+    total_count = len(recipe_item_pairs)
+    for recipe,items in recipe_item_pairs:
+        print(f'{count}: processing recipe {recipe["result"][0]}/{total_count}')
+        
+        # shapeless order permutations
+        if include_shapeless and recipe['shapeless'] == 1:
+            print('processing shapeless')
+            for item_permutation in itertools.permutations(items):
+                __add_to_tree(tree, list(item_permutation), recipe)
+            count += 1
+            # break
+        if include_shaped:
+            __add_to_tree(tree, items, recipe)
+            __add_to_tree(tree, get_recipe_items(recipe, mirror_horizontal=True), recipe)
+            count += 1
+        
+        # if count == 500:
+        #     break
+
+    return tree
+
+def __print_tree_size(tree, indent=0):
+    space = ' '*indent
+    print(f'{space}{len(tree)} keys')
+    for key in tree:
+        if isinstance(key, int):
+            __print_tree_size(tree[key], indent+1)
+        else:
+            print(f'{space}recipes: {len(tree[key])}')
