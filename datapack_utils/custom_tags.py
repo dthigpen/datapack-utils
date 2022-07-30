@@ -1,10 +1,8 @@
 from os import name
-from typing import List
-from typing import Iterator
 
-from datapack_utils import minecraft_data
+from datapack_utils import resources
 
-ALL_ITEM_IDS = [item['name'] for item in minecraft_data.get_items()]
+ALL_ITEM_IDS = [item['name'] for item in resources.get_items()]
 
 def __update_tagged_blocks_for_group(name: str, tags_dict: dict) -> list:
     """Gets a list of blocks for the given group, expanding referenced groups"""
@@ -22,7 +20,7 @@ def __contains_any_keyword(id: str, keywords: list) -> bool:
     return any([keyword in id for keyword in keywords])
 
 
-def string_matches_terms(string: str, and_list: List[List[str]]) -> bool:
+def string_matches_terms(string: str, and_list: list[list[str]]) -> bool:
     if not and_list:
         return False
     for or_list in and_list:
@@ -132,4 +130,4 @@ def get_custom_tags(strip_namespace=False):
 
 
 def get_all_tags_dict():
-    return minecraft_data.get_tags_dict() | get_custom_tags_dict()
+    return resources.get_tags_dict() | get_custom_tags_dict()

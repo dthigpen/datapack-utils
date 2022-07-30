@@ -8,7 +8,7 @@ from typing import Tuple
 import copy
 import itertools
 
-from . import minecraft_data
+from . import resources
 
 
 def __create_storage_tree(data_list: list, operations: list) -> dict:
@@ -31,15 +31,15 @@ def __create_storage_tree(data_list: list, operations: list) -> dict:
 
 def get_recipes():
     recipes = []
-    items_dict = minecraft_data.get_items_dict()
-    for _,recipe_variants in minecraft_data.get_recipes():
+    items_dict = resources.get_items_dict()
+    for _,recipe_variants in resources.get_recipes_dict().items():
         # if recipe_variants[0]['result']['id'] != 1079:
         #     continue
         # print(f"Creating {recipe_variants[0]['result']['id']}")
         merged_shaped_recipe = {"items":[],"slots":[],"result":[],"shapeless": 0}
         merged_shapeless_recipe = {"items":[[]],"slots":[],"result":[],"shapeless": 1}
         for variant in recipe_variants:
-            print(variant)
+            # print(variant)
             name = items_dict[variant['result']['id']]['name']
             # print(variant)
             row_index = 0

@@ -1,4 +1,4 @@
-from . import minecraft_data
+from . import resources
 from copy import deepcopy
 
 SHULKER_TEMPLATE = {
@@ -25,7 +25,7 @@ SHULKER_TEMPLATE = {
                         },
                         {
                             "type": "minecraft:item",
-                            "name": "minecraft:yellow_shulker_box",
+                            "name": "minecraft:pink_shulker_box",
                             "functions": [
                                 {
                                     "function": "minecraft:copy_name",
@@ -71,7 +71,7 @@ SHULKER_TEMPLATE = {
     ]
 }
 
-def get_custom_shulker_loot_table(color='yellow', functions=None):
+def get_custom_shulker_loot_table(color='pink', functions=None):
     custom_shulker_loot = deepcopy(SHULKER_TEMPLATE)
     custom_shulker_loot['pools'][0]['entries'][0]['children'][1]['name'] = f'minecraft:{color}_shulker_box'
     if functions is not None:
@@ -94,7 +94,7 @@ def get_id_assigning_shulker_loot_table():
         ]
     }
     item_entries = []
-    for item in minecraft_data.get_items():
+    for item in resources.get_items():
         item_entry = deepcopy(item_template)
         item_entry['tag'] = f"{{dt:{{id:{item['id']}, stackSize:{item['stackSize']}}}}}"
         item_entry['conditions'][0]['predicate']['items'][0] = f"minecraft:{item['name']}"

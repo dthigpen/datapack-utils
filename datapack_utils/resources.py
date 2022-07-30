@@ -1,94 +1,81 @@
 import json
 from pathlib import Path
-from typing import List
-from typing import Tuple
-import os
-import sys
-from . import minecraft_data
+import minecraft_data
+MCD = minecraft_data('1.18')
 
-DATA_PATH = Path(__file__).parent / '..' / 'minecraft_jar' / 'data'
+# From the mcmeta submodule
+DATA_PATH = Path(__file__).parent / '..' / 'mcmeta' / 'data'
 RECIPES_PATH =  DATA_PATH / 'minecraft' / 'recipes'
 ITEM_TAGS_PATH =  DATA_PATH / 'minecraft' / 'tags' / 'items'
-ITEMS_PATH = DATA_PATH / 'items.txt'
-ASSETS_PATH =  Path(__file__).parent / '..' / 'minecraft_jar' / 'assets'
+BLOCK_TAGS_PATH =  DATA_PATH / 'minecraft' / 'tags' / 'blocks'
+
+# From the minecraft-assets submodule
+# TODO look into why not all models do not exist in submodule
+ASSETS_PATH =  Path(__file__).parent / '..' / 'minecraft-assets' / 'assets'
 MODELS_PATH = ASSETS_PATH / 'minecraft' / 'models'
 MODELS_ITEMS_PATH = MODELS_PATH / 'item'
 MODELS_BLOCKS_PATH = MODELS_PATH / 'block'
 
-if not DATA_PATH.exists():
-    raise ValueError(f'Minecraft data folder does not exist at {DATA_PATH}. Run unpack_jar.sh first')
-else:
-    if not RECIPES_PATH.exists():
-        raise ValueError(f'Minecraft recipes resources do not exist at {RECIPES_PATH}.')
-    if not ITEM_TAGS_PATH.exists():
-        raise ValueError(f'Minecraft item tags resources do not exist at {ITEMS_PATH}.')
-    if not ITEMS_PATH.exists():
-        with open(ITEMS_PATH,'w') as f:
-            for i in minecraft_data.get_items():
-                f.write(f'mineraft:{i["name"]}\n')
-        if not ITEMS_PATH.exists():
-            raise ValueError(f'Minecraft item list does not exist at {ITEMS_PATH}.')
-    
-
-def get_item_dict_by_file_name(file_name: str) -> dict:
-    with open(ITEM_TAGS_PATH / (f'{file_name}.json'), 'r') as json_file:
-        return json.load(json_file)
-    return None
-
-def get_path_to_json_dicts(path: Path) -> Tuple[str,dict]:
-    for file_path in path.glob('*.json'):
-        with open(file_path, 'r') as json_file:
-            yield (file_path, json.load(json_file))
-
-def get_item_tags() -> Tuple[str,dict]:
-    return get_path_to_json_dicts(ITEM_TAGS_PATH)
-
-def get_all_recipes() -> Tuple[str,dict]:
-    for recipe_path in RECIPES_PATH.glob('*.json'):
-        with open(recipe_path, 'r') as tag_file:
-            yield ( recipe_path, json.loads(tag_file.read()))
-
-def get_unique_result_recipes():
-    all_items = set()
-    count = 0
-    for _, recipe_dict in get_all_recipes():
-        if 'result' in recipe_dict:
-            result = recipe_dict["result"] if isinstance(
-            recipe_dict["result"], str) else recipe_dict["result"]["item"]
-            if not result in all_items:
-                count+=1
-                all_items.add(result)
-                yield result
-
-def get_unique_result_recipes_new():
-    all_items = set()
-    count = 0
-    for _, recipe_dict in get_all_recipes():
-        if 'result' in recipe_dict:
-            result = recipe_dict["result"] if isinstance(
-            recipe_dict["result"], str) else recipe_dict["result"]["item"]
-            if not result in all_items:
-                count+=1
-                all_items.add(result)
-                yield result
-    
-def get_items(strip_prefix=False) -> List[str]:
-    all_items = []
-    with open(ITEMS_PATH, 'r') as items_file:
-        for item in items_file.readlines():
-            all_items.append(item.strip()[len('minecraft:'):] if strip_prefix else item.strip())
-    return all_items
-
 def path_exists(path: Path):
     if not path.exists():
-        raise ValueError(f'Minecraft data resources do not exist at {path}')
+        ValueError(f'{path} does not exist. Please ensure all submodules are cloned and on the correct tag/branch')
+
+# data check
+path_exists(DATA_PATH)
+path_exists(RECIPES_PATH)
+path_exists(ITEM_TAGS_PATH)
+path_exists(BLOCK_TAGS_PATH)
+# assets check
+# path_exists(ASSETS_PATH)
+# path_exists(MODELS_ITEMS_PATH)
+# path_exists(MODELS_BLOCKS_PATH)
 
 
-def get_script_path():
-    return Path(os.path.realpath(__file__)).parent
 
-def generate_recipe_tree_resources():
-    from . import recipes
-    json.dump(recipes.build_recipe_tree(include_shapeless=False),open(get_script_path() / 'resources/shaped_recipes_by_ingredient.json','w'), indent=2, sort_keys=False)
-    json.dump(recipes.build_recipe_tree(include_shaped=False),open(get_script_path() / 'resources/shapeless_recipes_by_ingredient.json','w'), indent=2, sort_keys=False)
+def __get_tag_values_from_name(path: Path) -> set[str]:
+    values = set()
+    if path.exists():
+        with open(path,'r') as json_file:
+            json_dict = json.load(json_file)
+            for value in json_dict['values']:
+                if value.startswith('#'):
+                    file_name = value[len('#minecraft:'):] + '.json'
+                    values = values.union(__get_tag_values_from_name(ITEM_TAGS_PATH / file_name))
+                    values.union(__get_tag_values_from_name(BLOCK_TAGS_PATH / file_name))
+                else:
+                    values.add(value)
+    else:
+        # print(f'Nothing found matching {path}')
+        pass
+    # print(f'read: {path.stem}')
+    # print(values)
+    return values
 
+def get_tags(strip_namespace=False):
+    tags = []
+    paths = [p for p in ITEM_TAGS_PATH.iterdir() if p.is_file()]
+    paths.extend([p for p in BLOCK_TAGS_PATH.iterdir() if p.is_file()])
+    for path in paths:
+        values = __get_tag_values_from_name(path)
+        tag = {"name":path.stem, "values": [value[len('minecraft:'):] if strip_namespace else value for value in values]}
+        tag['values'].sort()
+        tags.append(tag)
+
+    return tags
+
+def get_items():
+    return [MCD.find_item_or_block(i) for i in MCD.items]
+
+# TODO refactor to be get_items_dict_by_id
+def get_items_dict():
+    return { item['id']: item for item in get_items() }
+
+def get_items_dict_by_name():
+    return { item['name']: item for item in get_items() }
+
+# TODO refactor to be get_items_recipes_by_id
+def get_recipes_dict():
+    return MCD.recipes
+
+def get_tags_dict():
+    return {tag['name']: tag['values'] for tag in get_tags()}
