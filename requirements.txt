@@ -1,1 +1,0 @@
-minecraft-data @ git+https://github.com/SpockBotMC/python-minecraft-data
