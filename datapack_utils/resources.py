@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import minecraft_data
-MCD = minecraft_data('1.18')
+MCD = minecraft_data('1.19')
 
 # From the mcmeta submodule
 DATA_PATH = Path(__file__).parent / '..' / 'mcmeta' / 'data'
