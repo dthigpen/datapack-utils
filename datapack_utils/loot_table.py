@@ -95,9 +95,10 @@ def get_id_assigning_shulker_loot_table():
     }
     item_entries = []
     for item in resources.get_items():
-        item_entry = deepcopy(item_template)
-        item_entry['tag'] = f"{{dt:{{id:{item['id']}, stackSize:{item['stackSize']}}}}}"
-        item_entry['conditions'][0]['predicate']['items'][0] = f"minecraft:{item['name']}"
-        item_entries.append(item_entry)
+        if item['name'] != 'air':
+            item_entry = deepcopy(item_template)
+            item_entry['tag'] = f"{{dt:{{id:{item['id']}, stackSize:{item['stackSize']}}}}}"
+            item_entry['conditions'][0]['predicate']['items'][0] = f"minecraft:{item['name']}"
+            item_entries.append(item_entry)
 
     return get_custom_shulker_loot_table(color='pink',functions=item_entries)
