@@ -1,11 +1,10 @@
-from abc import ABC, abstractmethod
 import sys
 try:
     import cog
 except ImportError as e:
     sys.stderr.write('Cog import error\n')
 
-def msg(line: str, end):
+def msg(line: str, end: str = '\n'):
     if 'cog' in sys.modules:
         cog.msg(line + end)
     else:
@@ -18,7 +17,7 @@ def _out(line: str, end):
         print(f'cog.out: {line}', end=end)
 
 
-def out(line_or_lines, end='\n'):
+def out(line_or_lines: str | list[str], end='\n'):
         if isinstance(line_or_lines, str):
             _out(line_or_lines, end)
         else:

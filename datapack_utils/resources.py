@@ -67,15 +67,15 @@ def get_items():
     return [MCD.find_item_or_block(i) for i in MCD.items]
 
 # TODO refactor to be get_items_dict_by_id
-def get_items_dict():
+def get_items_dict() -> dict:
     return { item['id']: item for item in get_items() }
 
-def get_items_dict_by_name():
+def get_items_dict_by_name() -> dict:
     return { item['name']: item for item in get_items() }
 
 # TODO refactor to be get_items_recipes_by_id
-def get_recipes_dict():
+def get_recipes_dict() -> dict:
     return MCD.recipes
 
-def get_tags_dict():
+def get_tags_dict() -> dict:
     return {tag['name']: tag['values'] for tag in get_tags()}

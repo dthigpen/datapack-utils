@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import sys
 import os
-
+import shutil
 try:
     import cog
 except:
@@ -29,7 +29,17 @@ def get_current_dir(override_dir=None):
         return Path(override_dir)
     else:
         # raise Exception('Must provide an override dir if not in cog context')
-        return Path(os.getcwd())
+        return Path.cwd()
+
+def get_current_file(override_file=None):
+    if 'cog' in sys.modules:
+        return Path(cog.inFile)
+    elif override_file:
+        return Path(override_file)
+    else:
+        # raise Exception('Must provide an override dir if not in cog context')
+        return Path.cwd()
+
 
 def write_file_dict(path: Path, json_dict: dict):
     if json_dict['name'].endswith('.mcfunction'):
@@ -48,3 +58,11 @@ def write_file_dict(path: Path, json_dict: dict):
         with open(new_path, 'w') as f:
             # cog.msg(f'Writing to {new_path}')
             f.writelines((l + '\n' for l in json_dict.get('contents', [])))
+
+def write(path: Path, lines: list[str], line_ending: str='\n', backup: bool = True):
+    if backup and path.exists():
+        path_bak = path.parent / (path.name + '.bak')
+        shutil.copy(path, path_bak)
+    with open(path, 'w') as f:
+        for line in lines:
+            f.write(line + line_ending)

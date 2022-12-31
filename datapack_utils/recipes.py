@@ -28,11 +28,11 @@ def __create_storage_tree(data_list: list, operations: list) -> dict:
 
 # def __get_unique_ingredient_count(recipe_json: dict) -> int:
 #     return len(recipe_json['ingredients'])
-
 def get_recipes():
     recipes = []
     items_dict = resources.get_items_dict()
-    for _,recipe_variants in resources.get_recipes_dict().items():
+    # cog.msg(f'{len(items_dict)}')
+    for key,recipe_variants in resources.get_recipes_dict().items():
         # if recipe_variants[0]['result']['id'] != 1079:
         #     continue
         # print(f"Creating {recipe_variants[0]['result']['id']}")
