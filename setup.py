@@ -9,6 +9,6 @@ setup(
     url='https://github.com/dthigpen/datapack-utils',
     author='David Thigpen',
     author_email='davidthigs@gmail.com',
-    install_requires=['minecraft-data @ git+https://github.com/SpockBotMC/python-minecraft-data'],
+    install_requires=['minecraft_data@git+https://github.com/dthigpen/python-minecraft-data'],
     packages=find_packages()
 )
