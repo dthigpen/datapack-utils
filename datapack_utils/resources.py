@@ -2,9 +2,11 @@ import json
 from pathlib import Path
 import minecraft_data
 MCD = minecraft_data('1.19')
+from importlib import resources as impresources
+from .data import mcmeta
+from .data import minecraft_assets
 
-# From the mcmeta submodule
-DATA_PATH = Path(__file__).parent / '..' / 'mcmeta' / 'data'
+DATA_PATH = impresources.files(mcmeta) / 'data'
 RECIPES_PATH =  DATA_PATH / 'minecraft' / 'recipes'
 ITEM_TAGS_PATH =  DATA_PATH / 'minecraft' / 'tags' / 'items'
 BLOCK_TAGS_PATH =  DATA_PATH / 'minecraft' / 'tags' / 'blocks'
@@ -20,35 +22,22 @@ def path_exists(path: Path):
     if not path.exists():
         ValueError(f'{path} does not exist. Please ensure all submodules are cloned and on the correct tag/branch')
 
-# data check
-path_exists(DATA_PATH)
-path_exists(RECIPES_PATH)
-path_exists(ITEM_TAGS_PATH)
-path_exists(BLOCK_TAGS_PATH)
-# assets check
-# path_exists(ASSETS_PATH)
-# path_exists(MODELS_ITEMS_PATH)
-# path_exists(MODELS_BLOCKS_PATH)
-
 
 
 def __get_tag_values_from_name(path: Path) -> set[str]:
     values = set()
-    if path.exists():
-        with open(path,'r') as json_file:
-            json_dict = json.load(json_file)
-            for value in json_dict['values']:
-                if value.startswith('#'):
-                    file_name = value[len('#minecraft:'):] + '.json'
-                    values = values.union(__get_tag_values_from_name(ITEM_TAGS_PATH / file_name))
-                    values.union(__get_tag_values_from_name(BLOCK_TAGS_PATH / file_name))
-                else:
-                    values.add(value)
-    else:
-        # print(f'Nothing found matching {path}')
-        pass
-    # print(f'read: {path.stem}')
-    # print(values)
+    with path.open('r') as json_file:
+        json_dict = json.load(json_file)
+        for value in json_dict['values']:
+            if value.startswith('#'):
+                file_name = value[len('#minecraft:'):] + '.json'
+                if (item_tag := ITEM_TAGS_PATH / file_name).is_file():
+                    value = values.union(__get_tag_values_from_name(item_tag))
+                if (block_tag := BLOCK_TAGS_PATH / file_name).is_file():
+                    values = values.union(__get_tag_values_from_name(block_tag))
+            else:
+                values.add(value)
+    
     return values
 
 def get_tags(strip_namespace=False):

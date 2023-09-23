@@ -1,7 +1,0 @@
-[submodule "mcmeta"]
-	path = mcmeta
-	url = git@github.com:misode/mcmeta.git
-	branch = 1.18-data
-[submodule "minecraft-assets"]
-	path = minecraft-assets
-	url = git@github.com:PrismarineJS/minecraft-assets.git
